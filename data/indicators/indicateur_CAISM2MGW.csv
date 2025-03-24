@@ -1,3 +1,4 @@
+"ID_indicateur","indicateur","type"
 "1","pmIfStatsIpInHdrErrors.CTRL-6_Nb","D"
 "2","PktLoss.10.160.99.0","O"
 "3","pmRtpReceivedPktsHi.10.160.96.0","O"
@@ -261,7 +262,7 @@
 "261","pmNrOfContextsRej.VMGW_MEIND2Z_SPX1","A"
 "262","pmRtpReceivedPkts.10.160.101.0","O"
 "263","pmRtpReceivedPktsLo.10.160.72.0","O"
-"264","pmNrOfOrigNbInitFaults",
+"264","pmNrOfOrigNbInitFaults",""
 "265","pmNrOfOrigIpbcpBearSupervTmrExp.VMGW_CALIS2Z","A"
 "266","pmIfStatsIpUnknownProtos.CTRL-4_IUA_A","D"
 "267","pmRtpSentOctetsHi.10.160.34.0","A"
@@ -460,10 +461,10 @@
 "460","RTPLoss.10.160.100.0","O"
 "461","RTPLoss.10.160.97.0","O"
 "462","RTPLoss.10.160.96.0","O"
-"463","pmNoOfMSUSent",
-"464","pmNoOfMSUTransmitted",
-"465","pmNoOfMSUReceived",
-"466","pmNoOfMSURec",
+"463","pmNoOfMSUSent",""
+"464","pmNoOfMSUTransmitted",""
+"465","pmNoOfMSUReceived",""
+"466","pmNoOfMSURec",""
 "467","pmNoOfMSUReceived.ZRC9_0-4551_MTP2TPITU_0","A"
 "468","pmNoOfMSUTransmitted.IAM2395_MTP2TPITU_0","A"
 "469","pmNoOfMSUTransmitted.REIMS2_0-12363_MTP2TPITU_0","A"
@@ -2369,12 +2370,12 @@
 "2369","pmRtpSentPktsHi.10.189.124.0","A"
 "2370","pmRtpSentPktsLo.10.189.124.0","A"
 "2371","RTPLoss.10.189.124.0","O"
-"2372","pmAverageBwAmrVoipPtime20Ipv6",
+"2372","pmAverageBwAmrVoipPtime20Ipv6",""
 "2373","pmBusyInstances.G722Service","G"
-"2374","pmAverageBwG729Ptime20Ipv6",
-"2375","maxNrOfLicMediaStreamChannelsVoip.1",
+"2374","pmAverageBwG729Ptime20Ipv6",""
+"2375","maxNrOfLicMediaStreamChannelsVoip.1",""
 "2376","pmBusyInstances.G719Service","G"
-"2377","pmAverageBwG722VoipPtime20Ipv6",
+"2377","pmAverageBwG722VoipPtime20Ipv6",""
 "2378","pmBusyInstances.OpusService","G"
 "2379","pmBusyInstances.VbdService","G"
 "2380","pmBusyInstances.EvrcService","G"
@@ -2395,7 +2396,7 @@
 "2395","pmNoOfIpInDiscards","A"
 "2396","pmNoOfHdrErrors","A"
 "2397","pmNoOfIpAddrErrors","A"
-"2398","pmIfStatsIpInRecHi.10.199.154.0",
+"2398","pmIfStatsIpInRecHi.10.199.154.0",""
 "2399","pmConnLatePktsRatio5.10.189.144.0","O"
 "2400","pmCallsWithRtpPacketLoss1.10.189.144.0","A"
 "2401","pmCallsWithRtpPacketLoss0.10.189.144.0","A"

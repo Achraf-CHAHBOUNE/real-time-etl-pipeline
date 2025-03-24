@@ -1,3 +1,4 @@
+"ID_indicateur","indicateur","type"
 "1","maxNrOfLicMediaStreamChannels.1","G"
 "2","pmProcessorLoad.MAIN-2","G"
 "3","pmProcessorLoad.MAIN-20","G"
@@ -252,7 +253,7 @@
 "252","pmNrOfRecBctpProtocolFailures.VMGW_CALIS2Z","A"
 "253","pmNrOfAal2TermsReq.VMGW_MEIND2Z","A"
 "254","pmNrOfOrigIpbcpBearSupervTmrExp.VMGW_CALIS2Z","A"
-"255","pmNrOfOrigNbInitFaults",
+"255","pmNrOfOrigNbInitFaults",""
 "256","pmRtpReceivedPktsLo.10.160.72.0","O"
 "257","pmIpCnConnMeasuredJitter5.1","A"
 "258","pmRtpSentOctetsHi.10.160.34.0","A"
@@ -1923,17 +1924,17 @@
 "1923","IPOutDiscards.MRFP_CTRL-25_Sig","O"
 "1924","ErrorRate.MRFP_CTRL-25_Sig","O"
 "1925","IPInDiscards.MRFP_CTRL-25_Sig","O"
-"1926","pmAverageBwAmrVoipPtime20Ipv6",
+"1926","pmAverageBwAmrVoipPtime20Ipv6",""
 "1927","pmBusyInstances.VbdService","G"
-"1928","pmAverageBwG729Ptime20Ipv6",
+"1928","pmAverageBwG729Ptime20Ipv6",""
 "1929","pmBusyInstances.EvrcService","G"
 "1930","pmBusyInstances.AscService","G"
 "1931","pmBusyInstances.EvsService","G"
 "1932","pmAverageBwG722VoipPtime20.1","G"
-"1933","maxNrOfLicMediaStreamChannelsVoip.1",
+"1933","maxNrOfLicMediaStreamChannelsVoip.1",""
 "1934","pmBusyInstances.G719Service","G"
 "1935","pmBusyInstances.T38FaxService","G"
-"1936","pmAverageBwG722VoipPtime20Ipv6",
+"1936","pmAverageBwG722VoipPtime20Ipv6",""
 "1937","pmBusyInstances.OpusService","G"
 "1938","pmBusyInstances.G722Service","G"
 "1939","pmUnsuccSeizures.OpusService","A"

@@ -1,3 +1,4 @@
+"ID_indicateur","indicateur","type"
 "1","pmIfStatsIpInHdrErrors.CTRL-6_Nb","D"
 "2","PktLoss.10.160.99.0","O"
 "3","pmRtpReceivedPktsHi.10.160.96.0","O"
@@ -252,7 +253,7 @@
 "252","pmRtpReceivedPkts.10.160.101.0","O"
 "253","IPBCPestablishSuccessRate.VMGW_MEIND2Z_SPX1","O"
 "254","pmRtpReceivedPktsLo.10.160.72.0","O"
-"255","pmNrOfOrigNbInitFaults",
+"255","pmNrOfOrigNbInitFaults",""
 "256","pmNrOfOrigIpbcpBearSupervTmrExp.VMGW_CALIS2Z","A"
 "257","pmIfStatsIpUnknownProtos.CTRL-4_IUA_A","D"
 "258","pmRtpSentOctetsHi.10.160.34.0","A"
@@ -436,10 +437,10 @@
 "436","RTPLoss.10.160.102.0","O"
 "437","RTPLoss.10.160.96.0","O"
 "438","RTPLoss.10.160.97.0","O"
-"439","pmNoOfMSUSent",
-"440","pmNoOfMSUTransmitted",
-"441","pmNoOfMSUReceived",
-"442","pmNoOfMSURec",
+"439","pmNoOfMSUSent",""
+"440","pmNoOfMSUTransmitted",""
+"441","pmNoOfMSUReceived",""
+"442","pmNoOfMSURec",""
 "443","pmNoOfMSUTransmitted.MAIND1R_MTP2TPITU_14","A"
 "444","pmNoOfMSUTransmitted.INWI_TEST_MTP2TPITU_13","A"
 "445","pmNoOfMSUReceived.IAM2652_2632_MTP2TPITU_4","A"
@@ -2242,11 +2243,11 @@
 "2242","PktLoss.10.189.124.0","O"
 "2243","RTPLoss.10.189.134.0","O"
 "2244","RTPLoss.10.189.124.0","O"
-"2245","pmAverageBwAmrVoipPtime20Ipv6",
+"2245","pmAverageBwAmrVoipPtime20Ipv6",""
 "2246","pmBusyInstances.G722Service","G"
-"2247","pmAverageBwG729Ptime20Ipv6",
-"2248","maxNrOfLicMediaStreamChannelsVoip.1",
-"2249","pmAverageBwG722VoipPtime20Ipv6",
+"2247","pmAverageBwG729Ptime20Ipv6",""
+"2248","maxNrOfLicMediaStreamChannelsVoip.1",""
+"2249","pmAverageBwG722VoipPtime20Ipv6",""
 "2250","pmBusyInstances.VbdService","G"
 "2251","pmBusyInstances.AscService","G"
 "2252","pmAverageBwG722VoipPtime20.1","G"

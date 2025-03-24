@@ -1,3 +1,4 @@
+"ID_indicateur","indicateur","type"
 "1","maxNrOfLicMediaStreamChannels.1","G"
 "2","pmNrOfIpTermsReq.VMGW_MEIND2Z","A"
 "3","IPTerminationSuccessRate.VMGW_CALIS2Z","O"
@@ -365,7 +366,7 @@
 "365","pmRtpDiscardedPkts.10.160.102.0","A"
 "366","pmRtpReceivedPkts.10.160.101.0","O"
 "367","pmRtpReceivedPktsLo.10.160.72.0","O"
-"368","pmNrOfOrigNbInitFaults",
+"368","pmNrOfOrigNbInitFaults",""
 "369","pmRtpSentOctetsHi.10.160.34.0","A"
 "370","pmRtpReceivedPktsLo.10.160.98.0","O"
 "371","pmRtpSentPktsHi.10.160.45.0","A"
@@ -1876,18 +1877,18 @@
 "1876","pmRtpSentPktsLo.10.189.124.0","A"
 "1877","PktLoss.10.189.124.0","O"
 "1878","RTPLoss.10.189.124.0","O"
-"1879","pmAverageBwAmrVoipPtime20Ipv6",
+"1879","pmAverageBwAmrVoipPtime20Ipv6",""
 "1880","pmBusyInstances.VbdService","G"
 "1881","pmBusyInstances.EvrcService","G"
 "1882","pmBusyInstances.AscService","G"
 "1883","pmBusyInstances.EvsService","G"
 "1884","pmBusyInstances.G722Service","G"
-"1885","pmAverageBwG729Ptime20Ipv6",
+"1885","pmAverageBwG729Ptime20Ipv6",""
 "1886","pmAverageBwG722VoipPtime20.1","G"
-"1887","maxNrOfLicMediaStreamChannelsVoip.1",
+"1887","maxNrOfLicMediaStreamChannelsVoip.1",""
 "1888","pmBusyInstances.G719Service","G"
 "1889","pmBusyInstances.T38FaxService","G"
-"1890","pmAverageBwG722VoipPtime20Ipv6",
+"1890","pmAverageBwG722VoipPtime20Ipv6",""
 "1891","pmBusyInstances.OpusService","G"
 "1892","pmNoOfHdrErrors","A"
 "1893","pmUnsuccSeizures.EvrcService","A"
