@@ -1,0 +1,52 @@
+version: "3.8"
+services:
+  db-extractor:
+    build:
+      context: ./db-extractor
+    volumes:
+      - ./data/berkeleydb:/data
+    networks:
+      - etl-net
+  stream-processor:
+    build:
+      context: ./stream-processor
+    depends_on:
+      - db-extractor
+    networks:
+      - etl-net
+  anomaly-detector:
+    build:
+      context: ./anomaly-detector
+    depends_on:
+      - stream-processor
+    networks:
+      - etl-net
+  powerbi-connector:
+    build:
+      context: ./powerbi-connector
+    depends_on:
+      - anomaly-detector
+    networks:
+      - etl-net
+  airflow:
+    build:
+      context: ./airflow
+    depends_on:
+      - db-extractor
+      - stream-processor
+    networks:
+      - etl-net
+  prometheus:
+    image: prom/prometheus
+    volumes:
+      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+    networks:
+      - etl-net
+  grafana:
+    image: grafana/grafana
+    networks:
+      - etl-net
+
+networks:
+  etl-net:
+    driver: bridge

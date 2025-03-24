@@ -1,0 +1,3 @@
+berkeleydb
+kafka-python
+prometheus_client

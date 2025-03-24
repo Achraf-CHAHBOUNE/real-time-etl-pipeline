@@ -1,0 +1,9 @@
+# Ignore environment files
+.env
+data/last_dates.json
+data/first_run_complete.txt
+
+# Ignore Python cache files
+__pycache__/
+*.pyc
+*.pyo
