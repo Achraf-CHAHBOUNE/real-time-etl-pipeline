@@ -156,18 +156,14 @@ def save_last_extracted(last_extracted: Dict[str, str], filename: str = output_p
     with open(filename, 'w') as f:
         json.dump(last_extracted, f, indent=4)
 
-def extract_table_data(table: str, cursor, offset: int, batch_size: int = 500) -> Optional[List[tuple]]:
-    """Extract raw data from table and join locally with indicator CSV."""
-    last_extracted = load_last_extracted()
-    last_date = last_extracted.get(table, None)
-    
+def extract_table_data(table: str, cursor, offset: int, batch_size: int = 5000) -> Optional[List[tuple]]:
+    """Extract raw data from table in batches based on offset."""
     query = f"""
         SELECT date_heure, ID_indicateur, valeur
         FROM {table}
+        ORDER BY date_heure
+        LIMIT {batch_size} OFFSET {offset}
     """
-    if last_date:
-        query += f" WHERE date_heure > '{last_date}'"
-    query += f" LIMIT {batch_size} OFFSET {offset}"
     
     print(f"🔍 Executing query: {query}")
     
@@ -179,7 +175,7 @@ def extract_table_data(table: str, cursor, offset: int, batch_size: int = 500) -
         return None
     
     if not raw_data:
-        print(f"ℹ️ No data fetched for table {table}")
+        print(f"ℹ️ No data fetched for table {table} at offset {offset}")
         return None
     
     # Load indicator mapping from CSV
@@ -193,15 +189,6 @@ def extract_table_data(table: str, cursor, offset: int, batch_size: int = 500) -
     for date_heure, id_indicateur, valeur in raw_data:
         indicateur = indicator_map.get(id_indicateur, "Unknown")
         result.append((date_heure, indicateur, valeur))
-    
-    # Sort locally by date_heure
-    result = sorted(result, key=lambda x: x[0])
-    
-    if result:
-        max_date = result[-1][0]
-        last_extracted[table] = str(max_date)
-        save_last_extracted(last_extracted)
-        print(f"✅ Updated last_extracted for {table} with {max_date} after batch")
     
     return result
 
