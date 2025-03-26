@@ -1,4 +1,8 @@
+import logging
 from tools import connect_database, load_batch_into_database
+
+# Logging setup
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 
 class Loader:
     def __init__(self, config):
@@ -9,17 +13,13 @@ class Loader:
 
     def connect(self):
         """Connect to the database."""
-        try:
-            self.db = connect_database(self.config)
-            self.cursor = self.db.cursor()
-        except Exception as e:
-            print(f"❌ Failed to connect to the database: {e}")
-            raise
+        self.db = connect_database(self.config)  # Retries handled in tools.py
+        self.cursor = self.db.cursor()
 
     def load_batch_into_database(self, table_name, data):
         """Load a batch of data into the database."""
         try:
             load_batch_into_database(data, self.db, table_name)
         except Exception as e:
-            print(f"❌ Error loading batch into table {table_name}: {e}")
+            logging.error(f"Error loading batch into table {table_name}: {e}")
             raise
