@@ -1,8 +1,44 @@
-from config import DESTINATION_CONFIG  # Reuse from db-extractor
 import re
+from dotenv import load_dotenv
+from typing import Dict, Pattern
+import os
+
 
 # Pattern to extract Noeud
-NOEUD_PATTERN = re.compile(r'^(CALIS|MEIND|RAIND)', re.IGNORECASE)
+NOEUD_PATTERN_5_and_15 = re.compile(r'^(CALIS|MEIND|RAIND)', re.IGNORECASE)
+
+# database connection parameters
+
+load_dotenv()
+
+
+# Database connection parameters
+
+DB_HOST = os.getenv("DEST_MYSQL_HOST")
+DB_USER = os.getenv("DEST_MYSQL_USER")
+DB_PASSWORD = os.getenv("DEST_MYSQL_PASSWORD")
+DB_NAME = os.getenv("DEST_MYSQL_DB")
+DB_PORT = os.getenv("DEST_MYSQL_PORT", default=3306)
+
+# database_config 
+
+DB_CONFIG = {
+    'host': DB_HOST,
+    'user': DB_USER,
+    'password': DB_PASSWORD,
+    'port': DB_PORT,
+    'database': DB_PORT
+}
+
+# files_config 
+
+files_paths: Dict[str, str] = {
+    '5min': './data/our_data/result_5min.txt',
+    '15min': './data/our_data/result_15min.txt',
+    'mgw': './data/our_data/result_mgw.txt',
+    'last_extracted': './data/last_extracted.json'
+}
+
 
 # KPI formulas for 5min data
 KPI_FORMULAS_5MIN = {
