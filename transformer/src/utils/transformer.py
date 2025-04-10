@@ -1,148 +1,232 @@
+import pandas as pd
 import logging
-import re
-from collections import defaultdict
-from tools import connect_database, load_txt
-from config import DB_CONFIG, KPI_FORMULAS_5MIN, NOEUD_PATTERN_5_and_15, files_paths
+from typing import Dict, List, Any
+from config import SOURCE_DB_CONFIG, DEST_DB_CONFIG, KPI_FORMULAS_5MIN, NOEUD_PATTERN_5_15, files_paths
+from tools import connect_database, create_tables, extract_noeud, extract_indicateur_suffixe
 
+# Logging setup
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 
 class Transformer:
+    
     def __init__(self):
-        # Fix DB_CONFIG to use DB_NAME instead of DB_PORT
-        self.db = connect_database(DB_CONFIG)
-        self.cursor = self.db.cursor()
-        self.target_table = "transformed_5min"
-        self.create_transformed_table()
+        self.source_conn = connect_database(SOURCE_DB_CONFIG)
+        self.source_cursor = self.source_conn.cursor()
+        self.dest_conn = connect_database(DEST_DB_CONFIG)
+        self.dest_cursor = self.dest_conn.cursor()
+        self.kpi_formulas = KPI_FORMULAS_5MIN
+        self.noeud_pattern = NOEUD_PATTERN_5_15
+        self.tables = self.load_tables()
 
-    def load_tables(self):
-        """Load 5-minute tables from the Extractor's result_5min.txt."""
-        # Adjust path to point to Extractor's output
-        table_list_file = files_paths['5min']
-        tables = load_txt(table_list_file)
-        if not tables:
-            logging.warning(f"No tables found in {table_list_file}")
-        else:
-            logging.info(f"Loaded {len(tables)} 5-minute tables: {tables}")
-        return tables
-
-    def extract_noeud(self, table):
-        match = NOEUD_PATTERN_5_and_15.match(table)
-        return match.group(1).upper() if match else "UNKNOWN"
-
-    def parse_indicateur(self, indicateur):
-        match = re.match(r'^(.*?)\.(.+)$', indicateur)
-        if match:
-            return match.group(1), match.group(2)
-        return indicateur, None
-
-    def group_by_timestamp_and_suffix(self, table):
-        grouped = defaultdict(lambda: defaultdict(dict))
-        query = f"SELECT Date, indicateur, valeur FROM {table}"
+    def load_tables(self) -> List[str]:
+        """Load table names from result_5min.txt."""
         try:
-            self.cursor.execute(query)
-            rows = self.cursor.fetchall()
-            for date_heure, indicateur, valeur in rows:
-                timestamp = str(date_heure)
-                base_indicateur, suffix = self.parse_indicateur(indicateur)
-                grouped[(timestamp, suffix)][base_indicateur] = valeur
-            logging.info(f"Grouped {len(rows)} rows from {table}")
+            with open(files_paths['5min'], 'r') as f:
+                tables = [line.strip() for line in f if line.strip()]
+            logging.info(f"Loaded {len(tables)} tables from {files_paths['5min']}: {tables}")
+            return tables
         except Exception as e:
-            logging.error(f"Error querying {table}: {e}")
+            logging.error(f"Error loading tables from file: {e}")
+            raise
+
+    def create_tables(self):
+        """Create tables in the destination database."""
+        try:
+            create_tables(self.dest_cursor, self.kpi_formulas)
+            self.dest_conn.commit()
+            logging.info("Tables created successfully in destination database.")
+        except Exception as e:
+            logging.error(f"Error creating tables in destination database: {e}")
+            self.dest_conn.rollback()
+            raise
+
+    def get_distinct_dates(self, table: str) -> List[str]:
+        """Retrieve distinct Date values from a table in the source database."""
+        try:
+            query = f"SELECT DISTINCT Date FROM {table}"
+            self.source_cursor.execute(query)
+            dates = [str(row[0]) for row in self.source_cursor.fetchall()]
+            logging.info(f"Extracted {len(dates)} distinct dates from {table}: {dates}")
+            return dates
+        except Exception as e:
+            logging.error(f"Error getting distinct dates from {table}: {e}")
+            raise
+
+    def extract_node(self, table: str) -> str:
+        """Extract Node from table name."""
+        matches = extract_noeud(self.noeud_pattern, [table])
+        if matches:
+            node = matches[0][1]
+            logging.info(f"Extracted node '{node}' from table '{table}'")
+            return node
+        logging.warning(f"No node found in table name: {table}")
+        return None
+
+    def filter_indicateur_values(self, table: str, date: str, kpi: str) -> pd.DataFrame:
+        """Filter indicateur values for a specific KPI and date from the source database."""
+        kpi_config = self.kpi_formulas[kpi]
+        prefixes = kpi_config.get('numerator', []) + kpi_config.get('denominator', []) + kpi_config.get('additional', [])
+        
+        try:
+            query = f"""
+                SELECT indicateur, valeur
+                FROM {table}
+                WHERE Date = %s AND ({' OR '.join(['indicateur LIKE %s' for _ in prefixes])})
+            """
+            params = [date] + [f"{prefix}%" for prefix in prefixes]
+            self.source_cursor.execute(query, params)
+            data = self.source_cursor.fetchall()
+            
+            df = pd.DataFrame(data, columns=['indicateur', 'valeur'])
+            logging.info(f"Filtered {len(df)} indicateur values for {kpi} on {date} from {table}")
+            return df
+        except Exception as e:
+            logging.error(f"Error filtering indicateur values for {kpi} from {table}: {e}")
+            raise
+
+    def group_by_suffix(self, df: pd.DataFrame, kpi: str) -> Dict[str, Dict[str, List[float]]]:
+        """Group filtered data by suffix if applicable."""
+        kpi_config = self.kpi_formulas[kpi]
+        if not kpi_config.get('Suffix', False):
+            return {'': self.calculate_group_values(df, kpi_config)}
+
+        grouped = {}
+        for _, row in df.iterrows():
+            prefix, suffix = extract_indicateur_suffixe(row['indicateur'])
+            if suffix:
+                if suffix not in grouped:
+                    grouped[suffix] = {'numerator': [], 'denominator': [], 'additional': []}
+                if prefix in kpi_config.get('numerator', []):
+                    grouped[suffix]['numerator'].append(float(row['valeur']))
+                elif prefix in kpi_config.get('denominator', []):
+                    grouped[suffix]['denominator'].append(float(row['valeur']))
+                elif prefix in kpi_config.get('additional', []):
+                    grouped[suffix]['additional'].append(float(row['valeur']))
+        
+        logging.info(f"Grouped data by suffix for {kpi}: {grouped}")
         return grouped
 
-    def calculate_kpis(self, grouped_data, noeud):
-        transformed = []
-        for (timestamp, suffix), indicators in grouped_data.items():
-            kpi_results = {"date_heure": timestamp, "Noeud": noeud, "suffix": suffix}
-            # Store original indicator values
-            for indicateur, valeur in indicators.items():
-                kpi_results[indicateur] = valeur
-            # Calculate KPIs
-            for kpi_name, kpi_config in KPI_FORMULAS_5MIN.items():
-                if "numerator" in kpi_config and "denominator" in kpi_config:
-                    numerator_values = [indicators.get(ind, 0) for ind in kpi_config["numerator"]]
-                    denominator_values = [indicators.get(ind, 0) for ind in kpi_config["denominator"]]
-                    if not all(v is not None for v in numerator_values + denominator_values):
-                        kpi_results[kpi_name] = None
-                        continue
-                    if "additional" in kpi_config:
-                        additional_values = [indicators.get(ind, 0) for ind in kpi_config["additional"]]
-                        kpi_value = kpi_config["formula"](numerator_values, denominator_values, additional_values)
+    def calculate_group_values(self, df: pd.DataFrame, kpi_config: Dict) -> Dict[str, List[float]]:
+        """Calculate values for numerator, denominator, and additional fields."""
+        result = {
+            'numerator': [],
+            'denominator': [],
+            'additional': []
+        }
+        for _, row in df.iterrows():
+            prefix, _ = extract_indicateur_suffixe(row['indicateur'])
+            if prefix in kpi_config.get('numerator', []):
+                result['numerator'].append(float(row['valeur']))
+            elif prefix in kpi_config.get('denominator', []):
+                result['denominator'].append(float(row['valeur']))
+            elif prefix in kpi_config.get('additional', []):
+                result['additional'].append(float(row['valeur']))
+        return result
+
+    def calculate_kpi(self, kpi: str, group_values: Dict[str, List[float]]) -> float:
+        """Calculate KPI value using the formula."""
+        kpi_config = self.kpi_formulas[kpi]
+        formula = kpi_config['formula']
+        
+        try:
+            if 'additional' in kpi_config:
+                result = formula(group_values['numerator'], group_values['denominator'], group_values['additional'])
+            elif 'denominator' in kpi_config:
+                result = formula(group_values['numerator'], group_values['denominator'])
+            else:
+                result = formula(group_values['numerator'])
+            logging.info(f"Calculated {kpi} value: {result}")
+            return result
+        except Exception as e:
+            logging.error(f"Error calculating {kpi}: {e}")
+            return None
+
+    def insert_kpi_summary(self, date: str, node: str) -> int:
+        """Insert into kpi_summary in the destination database and return the generated ID."""
+        try:
+            query = "INSERT INTO kpi_summary (Date, Node) VALUES (%s, %s)"
+            self.dest_cursor.execute(query, (date, node))
+            self.dest_conn.commit()
+            self.dest_cursor.execute("SELECT LAST_INSERT_ID()")
+            kpi_id = self.dest_cursor.fetchone()[0]
+            logging.info(f"Inserted into kpi_summary: Date={date}, Node={node}, ID={kpi_id}")
+            return kpi_id
+        except Exception as e:
+            logging.error(f"Error inserting into kpi_summary: {e}")
+            self.dest_conn.rollback()
+            raise
+
+    def insert_kpi_details(self, kpi: str, kpi_id: int, suffix: str, group_values: Dict[str, List[float]], kpi_value: float):
+        """Insert into KPI details table in the destination database, avoiding duplicate columns."""
+        kpi_config = self.kpi_formulas[kpi]
+        table_name = f"{kpi.lower()}_details"
+        
+        # Use a dictionary to store column-value pairs, ensuring uniqueness
+        column_value_map = {"kpi_id": kpi_id}
+        
+        if kpi_config.get('Suffix', False) and suffix:
+            column_value_map["suffix"] = suffix
+
+        # Aggregate values for each unique column
+        for field in ['numerator', 'denominator', 'additional']:
+            if field in kpi_config:
+                for i, prefix in enumerate(kpi_config[field]):
+                    value = sum(group_values[field][i:i+1]) if i < len(group_values[field]) else 0
+                    if prefix in column_value_map:
+                        column_value_map[prefix] += value
                     else:
-                        kpi_value = kpi_config["formula"](numerator_values, denominator_values)
-                elif "numerator" in kpi_config:
-                    numerator_values = [indicators.get(ind, 0) for ind in kpi_config["numerator"]]
-                    if not all(v is not None for v in numerator_values):
-                        kpi_results[kpi_name] = None
-                        continue
-                    kpi_value = kpi_config["formula"](numerator_values)
-                else:
-                    kpi_results[kpi_name] = None
-                    continue
-                kpi_results[kpi_name] = round(kpi_value, 2) if kpi_value is not None else None
-            transformed.append(kpi_results)
-        return transformed
+                        column_value_map[prefix] = value
 
-    def create_transformed_table(self):
-        """Create the transformed_5min table if it doesn't exist."""
-        self.cursor.execute(f"SHOW TABLES LIKE '{self.target_table}'")
-        if not self.cursor.fetchone():
-            columns = [
-                "Date DATETIME",
-                "Noeud VARCHAR(255)",
-                "suffix VARCHAR(255)"
-            ]
-            # Add all original indicators from KPI_FORMULAS_5MIN
-            all_indicators = set()
-            for kpi_config in KPI_FORMULAS_5MIN.values():
-                all_indicators.update(kpi_config.get("numerator", []))
-                all_indicators.update(kpi_config.get("denominator", []))
-                all_indicators.update(kpi_config.get("additional", []))
-            for ind in sorted(all_indicators):
-                columns.append(f"`{ind}` FLOAT")
-            # Add all KPI columns
-            for kpi_name in KPI_FORMULAS_5MIN.keys():
-                columns.append(f"`{kpi_name}` FLOAT")
-            create_query = f"CREATE TABLE {self.target_table} ({', '.join(columns)})"
-            self.cursor.execute(create_query)
-            self.db.commit()
-            logging.info(f"Created table {self.target_table}")
+        column_value_map["value"] = kpi_value
 
-    def save_transformed_data(self, transformed_data):
-        """Insert transformed data into transformed_5min."""
-        all_indicators = set()
-        for kpi_config in KPI_FORMULAS_5MIN.values():
-            all_indicators.update(kpi_config.get("numerator", []))
-            all_indicators.update(kpi_config.get("denominator", []))
-            all_indicators.update(kpi_config.get("additional", []))
-        columns = ["Date", "Noeud", "suffix"] + sorted(all_indicators) + list(KPI_FORMULAS_5MIN.keys())
-        placeholders = ', '.join(['%s'] * len(columns))
-        insert_query = f"INSERT INTO {self.target_table} ({', '.join(columns)}) VALUES ({placeholders})"
-        data_to_insert = [
-            (
-                row["date_heure"], row["Noeud"], row["suffix"],
-                *[row.get(ind, None) for ind in sorted(all_indicators)],
-                *[row.get(kpi, None) for kpi in KPI_FORMULAS_5MIN.keys()]
-            )
-            for row in transformed_data
-        ]
-        self.cursor.executemany(insert_query, data_to_insert)
-        self.db.commit()
-        logging.info(f"Inserted {len(transformed_data)} rows into {self.target_table}")
+        # Convert to lists for SQL insertion
+        columns = list(column_value_map.keys())
+        values = list(column_value_map.values())
+        params = ["%s"] * len(columns)
 
-    def transform(self, table):
-        noeud = self.extract_noeud(table)
-        grouped_data = self.group_by_timestamp_and_suffix(table)
-        transformed_data = self.calculate_kpis(grouped_data, noeud)
-        self.save_transformed_data(transformed_data)
+        try:
+            query = f"INSERT INTO {table_name} ({', '.join(columns)}) VALUES ({', '.join(params)})"
+            self.dest_cursor.execute(query, values)
+            self.dest_conn.commit()
+            logging.info(f"Inserted into {table_name}: kpi_id={kpi_id}, suffix={suffix}, columns={columns}, values={values}")
+        except Exception as e:
+            logging.error(f"Error inserting into {table_name}: {e}")
+            self.dest_conn.rollback()
+            raise
 
-    def run(self):
-        tables = self.load_tables()
-        for table in tables:
-            logging.info(f"Transforming table: {table}")
-            self.transform(table)
-        logging.info("Transformation complete.")
+    def process(self):
+        """Main process to handle all tables."""
+        self.create_tables()
+        
+        for table in self.tables:
+            node = self.extract_node(table)
+            if not node:
+                continue
+                
+            dates = self.get_distinct_dates(table)
+            for date in dates:
+                kpi_summary_id = self.insert_kpi_summary(date, node)
+                
+                for kpi in self.kpi_formulas.keys():
+                    df = self.filter_indicateur_values(table, date, kpi)
+                    grouped_data = self.group_by_suffix(df, kpi)
+                    
+                    for suffix, group_values in grouped_data.items():
+                        kpi_value = self.calculate_kpi(kpi, group_values)
+                        # Skip insertion if kpi_value is None
+                        if kpi_value is not None:
+                            self.insert_kpi_details(kpi, kpi_summary_id, suffix, group_values, kpi_value)
+                        else:
+                            logging.warning(f"Skipped insertion for {kpi} (suffix: {suffix}) due to None value")
+
+    def __del__(self):
+        """Cleanup database connections."""
+        self.source_cursor.close()
+        self.source_conn.close()
+        self.dest_cursor.close()
+        self.dest_conn.close()
+        logging.info("Database connections closed.")
 
 if __name__ == "__main__":
     transformer = Transformer()
-    transformer.run()
+    transformer.process()
