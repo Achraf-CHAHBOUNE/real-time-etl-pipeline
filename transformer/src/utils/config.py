@@ -1,26 +1,26 @@
 import re
 from dotenv import load_dotenv
-from typing import Dict, Pattern
+from typing import Dict
 import os
 
-# Pattern to extract Noeud
+# Pattern to extract Node
 NOEUD_PATTERN_5_15 = re.compile(r'^(CALIS|MEIND|RAIND)', re.IGNORECASE)
 
 # Database connection parameters
 load_dotenv()
 
-# Source Database connection parameters (where raw data is stored)
+# Source Database connection parameters
 SOURCE_DB_HOST = os.getenv("SOURCE_MYSQL_HOST")
 SOURCE_DB_USER = os.getenv("SOURCE_MYSQL_USER")
 SOURCE_DB_PASSWORD = os.getenv("SOURCE_MYSQL_PASSWORD")
 SOURCE_DB_NAME = os.getenv("SOURCE_MYSQL_DB")
 SOURCE_DB_PORT = int(os.getenv("SOURCE_MYSQL_PORT", default=3306))
 
-# Destination Database connection parameters (where transformed data will be stored)
+# Destination Database connection parameters
 DEST_DB_HOST = os.getenv("DEST_MYSQL_HOST")
 DEST_DB_USER = os.getenv("DEST_MYSQL_USER")
 DEST_DB_PASSWORD = os.getenv("DEST_MYSQL_PASSWORD")
-DEST_DB_NAME = "5min_transform"  # Fixed name for the destination database
+DEST_DB_NAME = "5min_transform"
 DEST_DB_PORT = int(os.getenv("DEST_MYSQL_PORT", default=3306))
 
 # Source Database config
@@ -47,6 +47,18 @@ files_paths: Dict[str, str] = {
     '15min': './data/our_data/result_15min.txt',
     'mgw': './data/our_data/result_mgw.txt',
     'last_extracted': './data/last_extracted.json'
+}
+
+# Suffix to operator/network mapping (lowercase keys)
+SUFFIX_OPERATOR_MAPPING = {
+    'nw': 'Inwi',
+    'mt': 'Maroc Telecom',
+    'ie': 'International',
+    'is': 'International',
+    'bs': 'Orange 2G',
+    'be': 'Orange 2G',
+    'ne': 'Orange 3G',
+    'ns': 'Orange 3G'
 }
 
 # KPI formulas for 5min data (spaces replaced with underscores)
@@ -181,13 +193,13 @@ KPI_FORMULAS_5MIN = {
     },
     "RouteUtilizationIn": {
         "numerator": ["VoiproITRALAC"],
-        "denominator": ["VoiproNTRAFIND_STASIPI"],  # Updated
+        "denominator": ["VoiproNTRAFIND_STASIPI"],
         "Suffix": True,
         "formula": lambda num, denom: (sum(num) / sum(denom)) * 100 if sum(denom) != 0 else None
     },
     "RouteUtilizationOut": {
         "numerator": ["VoiproOTRALAC"],
-        "denominator": ["VoiproNTRAFIND_STASIPO"],  # Updated
+        "denominator": ["VoiproNTRAFIND_STASIPO"],
         "Suffix": True,
         "formula": lambda num, denom: (sum(num) / sum(denom)) * 100 if sum(denom) != 0 else None
     },

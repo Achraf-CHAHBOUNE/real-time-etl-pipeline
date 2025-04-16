@@ -1,4 +1,5 @@
 # Ignore environment files
+env
 .env
 data/last_dates.json
 data/first_run_complete.txt

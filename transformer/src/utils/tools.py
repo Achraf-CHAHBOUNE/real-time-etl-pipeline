@@ -25,8 +25,6 @@ def connect_database(config: Dict[str, Any]):
         logging.error(f"Database connection error: {e}")
         raise
 
-# Other utility functions (store_json, load_json, etc.) remain unchanged...
-
 def create_main_table(cursor):
     """Create the main table if it doesn't exist."""
     try:
@@ -46,13 +44,12 @@ def create_kpi_tables(cursor, KPI_FORMULAS):
     """Create KPI-specific tables based on KPI_FORMULAS config, ensuring no duplicate columns."""
     try:
         for table_name, config in KPI_FORMULAS.items():
-            # Use a set to ensure unique column definitions
             columns_set = {"kpi_id INT NOT NULL"}
             
             if config.get('Suffix', False):
                 columns_set.add("suffix VARCHAR(50)")
+            columns_set.add("operator VARCHAR(50)")  # Always include operator, nullable
 
-            # Collect all unique column names from numerator, denominator, and additional fields
             all_fields = (
                 config.get('numerator', []) +
                 config.get('denominator', []) +
@@ -61,11 +58,9 @@ def create_kpi_tables(cursor, KPI_FORMULAS):
             for col in all_fields:
                 columns_set.add(f"{col} FLOAT")
 
-            # Always include value column
             columns_set.add("value FLOAT")
 
-            # Convert set to list and join for SQL query
-            columns_str = ",\n    ".join(sorted(columns_set))  # Sort for consistency
+            columns_str = ",\n    ".join(sorted(columns_set))
 
             create_query = f"""
             CREATE TABLE IF NOT EXISTS {table_name}_details (

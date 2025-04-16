@@ -1,7 +1,7 @@
 import pandas as pd
 import logging
 from typing import Dict, List, Any
-from config import SOURCE_DB_CONFIG, DEST_DB_CONFIG, KPI_FORMULAS_5MIN, NOEUD_PATTERN_5_15, files_paths
+from config import SOURCE_DB_CONFIG, DEST_DB_CONFIG, KPI_FORMULAS_5MIN, NOEUD_PATTERN_5_15, files_paths, SUFFIX_OPERATOR_MAPPING
 from tools import connect_database, create_tables, extract_noeud, extract_indicateur_suffixe
 
 # Logging setup
@@ -46,7 +46,7 @@ class Transformer:
             query = f"SELECT DISTINCT Date FROM {table}"
             self.source_cursor.execute(query)
             dates = [str(row[0]) for row in self.source_cursor.fetchall()]
-            logging.info(f"Extracted {len(dates)} distinct dates from {table}: {dates}")
+            logging.info(f"Extracted {len(dates)} distinct dates from {table}")
             return dates
         except Exception as e:
             logging.error(f"Error getting distinct dates from {table}: {e}")
@@ -78,7 +78,10 @@ class Transformer:
             data = self.source_cursor.fetchall()
             
             df = pd.DataFrame(data, columns=['indicateur', 'valeur'])
-            logging.info(f"Filtered {len(df)} indicateur values for {kpi} on {date} from {table}")
+            if df.empty:
+                logging.warning(f"No data found for {kpi} on {date} in {table}")
+            else:
+                logging.info(f"Filtered {len(df)} indicateur values for {kpi} on {date} from {table}")
             return df
         except Exception as e:
             logging.error(f"Error filtering indicateur values for {kpi} from {table}: {e}")
@@ -103,7 +106,7 @@ class Transformer:
                 elif prefix in kpi_config.get('additional', []):
                     grouped[suffix]['additional'].append(float(row['valeur']))
         
-        logging.info(f"Grouped data by suffix for {kpi}: {grouped}")
+        logging.info(f"Grouped data by suffix for {kpi}: {list(grouped.keys())}")
         return grouped
 
     def calculate_group_values(self, df: pd.DataFrame, kpi_config: Dict) -> Dict[str, List[float]]:
@@ -135,8 +138,11 @@ class Transformer:
                 result = formula(group_values['numerator'], group_values['denominator'])
             else:
                 result = formula(group_values['numerator'])
-            logging.info(f"Calculated {kpi} value: {result}")
+            logging.info(f"Calculated {kpi} value: {result}, numerator={group_values['numerator']}, denominator={group_values.get('denominator', [])}, additional={group_values.get('additional', [])}")
             return result
+        except ZeroDivisionError:
+            logging.warning(f"ZeroDivisionError calculating {kpi}: denominator={group_values.get('denominator', [])}")
+            return None
         except Exception as e:
             logging.error(f"Error calculating {kpi}: {e}")
             return None
@@ -157,25 +163,39 @@ class Transformer:
             raise
 
     def insert_kpi_details(self, kpi: str, kpi_id: int, suffix: str, group_values: Dict[str, List[float]], kpi_value: float):
-        """Insert into KPI details table in the destination database, avoiding duplicate columns."""
+        """Insert into KPI details table in the destination database, including operator."""
         kpi_config = self.kpi_formulas[kpi]
         table_name = f"{kpi.lower()}_details"
         
-        # Use a dictionary to store column-value pairs, ensuring uniqueness
+        # Use a dictionary to store column-value pairs
         column_value_map = {"kpi_id": kpi_id}
         
         if kpi_config.get('Suffix', False) and suffix:
             column_value_map["suffix"] = suffix
+            # Parse suffix to determine operator
+            normalized_suffix = suffix.lower()
+            operator = "Unknown"
+            # Special case: NW and IE/IS means Inwi International
+            if 'nw' in normalized_suffix and ('ie' in normalized_suffix or 'is' in normalized_suffix):
+                operator = "Inwi International"
+            else:
+                # Fallback: check for other operator codes
+                for op_suffix in SUFFIX_OPERATOR_MAPPING.keys():
+                    if op_suffix in normalized_suffix:
+                        operator = SUFFIX_OPERATOR_MAPPING[op_suffix]
+                        break
+            column_value_map["operator"] = operator
+            if operator == "Unknown":
+                logging.warning(f"No known operator found in suffix: {suffix} (normalized: {normalized_suffix})")
+        else:
+            column_value_map["operator"] = None  # Explicitly set operator to None for non-suffix KPIs
 
         # Aggregate values for each unique column
         for field in ['numerator', 'denominator', 'additional']:
             if field in kpi_config:
                 for i, prefix in enumerate(kpi_config[field]):
                     value = sum(group_values[field][i:i+1]) if i < len(group_values[field]) else 0
-                    if prefix in column_value_map:
-                        column_value_map[prefix] += value
-                    else:
-                        column_value_map[prefix] = value
+                    column_value_map[prefix] = value
 
         column_value_map["value"] = kpi_value
 
@@ -188,7 +208,8 @@ class Transformer:
             query = f"INSERT INTO {table_name} ({', '.join(columns)}) VALUES ({', '.join(params)})"
             self.dest_cursor.execute(query, values)
             self.dest_conn.commit()
-            logging.info(f"Inserted into {table_name}: kpi_id={kpi_id}, suffix={suffix}, columns={columns}, values={values}")
+            operator_log = column_value_map.get('operator', 'None')
+            logging.info(f"Inserted into {table_name}: kpi_id={kpi_id}, suffix={suffix}, operator={operator_log}, columns={columns}")
         except Exception as e:
             logging.error(f"Error inserting into {table_name}: {e}")
             self.dest_conn.rollback()
@@ -213,11 +234,10 @@ class Transformer:
                     
                     for suffix, group_values in grouped_data.items():
                         kpi_value = self.calculate_kpi(kpi, group_values)
-                        # Skip insertion if kpi_value is None
-                        if kpi_value is not None:
-                            self.insert_kpi_details(kpi, kpi_summary_id, suffix, group_values, kpi_value)
-                        else:
-                            logging.warning(f"Skipped insertion for {kpi} (suffix: {suffix}) due to None value")
+                        # if kpi_value is not None:
+                        self.insert_kpi_details(kpi, kpi_summary_id, suffix, group_values, kpi_value)
+                        # else:
+                        #     logging.warning(f"Skipped insertion for {kpi} (suffix: {suffix}) due to None value")
 
     def __del__(self):
         """Cleanup database connections."""
