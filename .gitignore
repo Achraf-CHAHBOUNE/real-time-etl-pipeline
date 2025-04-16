@@ -1,8 +1,7 @@
 # Ignore environment files
 env
 .env
-data/last_dates.json
-data/first_run_complete.txt
+data
 
 # Ignore Python cache files
 __pycache__/
