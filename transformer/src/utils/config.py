@@ -20,7 +20,7 @@ SOURCE_DB_PORT = int(os.getenv("SOURCE_MYSQL_PORT", default=3306))
 DEST_DB_HOST = os.getenv("DEST_MYSQL_HOST")
 DEST_DB_USER = os.getenv("DEST_MYSQL_USER")
 DEST_DB_PASSWORD = os.getenv("DEST_MYSQL_PASSWORD")
-DEST_DB_NAME = "5min_transform"
+DEST_DB_NAME = "5min_kpi"
 DEST_DB_PORT = int(os.getenv("DEST_MYSQL_PORT", default=3306))
 
 # Source Database config
@@ -28,7 +28,7 @@ SOURCE_DB_CONFIG = {
     'host': SOURCE_DB_HOST,
     'user': SOURCE_DB_USER,
     'password': SOURCE_DB_PASSWORD,
-    'port': 3307,
+    'port': SOURCE_DB_PORT,
     'database': SOURCE_DB_NAME
 }
 
@@ -37,7 +37,7 @@ DEST_DB_CONFIG = {
     'host': DEST_DB_HOST,
     'user': DEST_DB_USER,
     'password': DEST_DB_PASSWORD,
-    'port': 3307,
+    'port': DEST_DB_PORT,
     'database': DEST_DB_NAME
 }
 
@@ -59,6 +59,13 @@ SUFFIX_OPERATOR_MAPPING = {
     'be': 'Orange 2G',
     'ne': 'Orange 3G',
     'ns': 'Orange 3G'
+}
+
+# KPI families
+KPI_FAMILIES = {
+    'traffic': [
+        'TRAF_Erlang_S', 'TRAF_Erlang_E'
+    ]
 }
 
 # KPI formulas for 5min data (spaces replaced with underscores)
@@ -139,12 +146,14 @@ KPI_FORMULAS_5MIN = {
         "numerator": ["TrunkrouteNTRALACCO"],
         "denominator": ["TrunkrouteNSCAN"],
         "Suffix": True,
+        "family": "traffic",
         "formula": lambda num, denom: (sum(num) / sum(denom)) if sum(denom) != 0 else None
     },
     "TRAF_Erlang_E": {
         "numerator": ["TrunkrouteNTRALACCI"],
         "denominator": ["TrunkrouteNSCAN"],
         "Suffix": True,
+        "family": "traffic",
         "formula": lambda num, denom: (sum(num) / sum(denom)) if sum(denom) != 0 else None
     },
     "TRAF_RDT": {
@@ -152,36 +161,42 @@ KPI_FORMULAS_5MIN = {
         "denominator": ["TrunkrouteNSCAN"],
         "additional": ["TrunkrouteNDEV", "TrunkrouteNBLOCACC"],
         "Suffix": True,
+        "family": "traffic",
         "formula": lambda num, denom, add: ((sum(num) / sum(denom)) / (add[0] - (add[1] / sum(denom)))) * 100 if (sum(denom) != 0 and (add[0] - (add[1] / sum(denom))) != 0) else None
     },
     "TRAF_CircHS": {
         "numerator": ["TrunkrouteNBLOCACC"],
         "denominator": ["TrunkrouteNSCAN", "TrunkrouteNDEV"],
         "Suffix": True,
+        "family": "traffic",
         "formula": lambda num, denom: (sum(num) / denom[0]) / denom[1] * 100 if (denom[0] != 0 and denom[1] != 0) else None
     },
     "TRAF_ALOC_E": {
         "numerator": ["TrunkrouteNTRALACCI"],
         "denominator": ["TrunkrouteNSCAN", "TrunkrouteNANSWERSI"],
         "Suffix": True,
+        "family": "traffic",
         "formula": lambda num, denom: (sum(num) / denom[0]) / denom[1] * 300 if (denom[0] != 0 and denom[1] != 0) else None
     },
     "TRAF_ALOC_S": {
         "numerator": ["TrunkrouteNTRALACCO"],
         "denominator": ["TrunkrouteNSCAN", "TrunkrouteNANSWERSO"],
         "Suffix": True,
+        "family": "traffic",
         "formula": lambda num, denom: (sum(num) / denom[0]) / denom[1] * 300 if (denom[0] != 0 and denom[1] != 0) else None
     },
     "ASR_S": {
         "numerator": ["TrunkrouteNANSWERSO"],
         "denominator": ["TrunkrouteNCALLSO", "TrunkrouteNOVERFLOWO"],
         "Suffix": True,
+        "family": "traffic",
         "formula": lambda num, denom: (sum(num) / (denom[0] - denom[1])) * 100 if (denom[0] - denom[1]) != 0 else None
     },
     "ASR_E": {
         "numerator": ["TrunkrouteNANSWERSI"],
         "denominator": ["TrunkrouteNCALLSI"],
         "Suffix": True,
+        "family": "traffic",
         "formula": lambda num, denom: (sum(num) / sum(denom)) * 100 if sum(denom) != 0 else None
     },
     "TRAF_FCS": {
@@ -189,6 +204,7 @@ KPI_FORMULAS_5MIN = {
         "denominator": ["TrunkrouteNSCAN"],
         "additional": ["TrunkrouteNDEV"],
         "Suffix": True,
+        "family": "traffic",
         "formula": lambda num, denom, add: add[0] - (sum(num) / sum(denom)) if sum(denom) != 0 else None
     },
     "RouteUtilizationIn": {
@@ -269,7 +285,7 @@ KPI_FORMULAS_5MIN = {
         "formula": lambda num, denom: (sum(num) / sum(denom)) * 100 if sum(denom) != 0 else None
     },
     "CSFB_Call_MT": {
-        "numerator": ["CsfbNSUCCCSFB"],
+        "numerator": ["CsfsbNSUCCCSFB"],
         "denominator": ["CsfbNSUCCCSFB", "CsfbNUNSUCCCSFB", "CsfbNUSREJCSFB"],
         "Suffix": False,
         "formula": lambda num, denom: (sum(num) / sum(denom)) * 100 if sum(denom) != 0 else None

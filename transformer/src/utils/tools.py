@@ -4,6 +4,7 @@ import os
 from typing import List, Dict, Any
 from tenacity import retry, stop_after_attempt, wait_exponential
 import logging
+from config import KPI_FORMULAS_5MIN, KPI_FAMILIES
 
 # Logging setup
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
@@ -40,16 +41,39 @@ def create_main_table(cursor):
         logging.error(f"Error creating main table: {e}")
         raise
 
-def create_kpi_tables(cursor, KPI_FORMULAS):
-    """Create KPI-specific tables based on KPI_FORMULAS config, ensuring no duplicate columns."""
+def create_kpi_tables(cursor, KPI_FORMULAS, KPI_FAMILIES):
+    """Create KPI-specific tables based on KPI_FORMULAS and KPI_FAMILIES config."""
     try:
-        for table_name, config in KPI_FORMULAS.items():
+        # Create family-based tables
+        for family, kpis in KPI_FAMILIES.items():
+            columns_set = {"kpi_id INT NOT NULL", "suffix VARCHAR(50)", "operator VARCHAR(50)", "kpi VARCHAR(50) NOT NULL", "type VARCHAR(10)"}
+            # Collect all unique counters for the family
+            all_fields = set()
+            for kpi in kpis:
+                config = KPI_FORMULAS[kpi]
+                all_fields.update(config.get('numerator', []) + config.get('denominator', []) + config.get('additional', []))
+            for col in all_fields:
+                columns_set.add(f"{col} FLOAT")
+            columns_set.add("value FLOAT")
+            columns_str = ",\n    ".join(sorted(columns_set))
+            create_query = f"""
+            CREATE TABLE IF NOT EXISTS {family}_details (
+                id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+                {columns_str},
+                FOREIGN KEY (kpi_id) REFERENCES kpi_summary(Id)
+            );
+            """
+            cursor.execute(create_query)
+            logging.info(f"✅ Table '{family}_details' created or already exists.")
+
+        # Create individual tables for KPIs not in a family
+        for kpi, config in KPI_FORMULAS.items():
+            if config.get('family') in KPI_FAMILIES:
+                continue  # Skip KPIs already handled in family tables
             columns_set = {"kpi_id INT NOT NULL"}
-            
             if config.get('Suffix', False):
                 columns_set.add("suffix VARCHAR(50)")
-            columns_set.add("operator VARCHAR(50)")  # Always include operator, nullable
-
+            columns_set.add("operator VARCHAR(50)")
             all_fields = (
                 config.get('numerator', []) +
                 config.get('denominator', []) +
@@ -57,29 +81,26 @@ def create_kpi_tables(cursor, KPI_FORMULAS):
             )
             for col in all_fields:
                 columns_set.add(f"{col} FLOAT")
-
             columns_set.add("value FLOAT")
-
             columns_str = ",\n    ".join(sorted(columns_set))
-
             create_query = f"""
-            CREATE TABLE IF NOT EXISTS {table_name}_details (
+            CREATE TABLE IF NOT EXISTS {kpi}_details (
                 id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
                 {columns_str},
                 FOREIGN KEY (kpi_id) REFERENCES kpi_summary(Id)
             );
             """
             cursor.execute(create_query)
-            logging.info(f"✅ Table '{table_name}_details' created or already exists.")
+            logging.info(f"✅ Table '{kpi}_details' created or already exists.")
     except MySQLdb.Error as e:
         logging.error(f"Error creating KPI tables: {e}")
         raise
 
-def create_tables(cursor, KPI_FORMULAS):
+def create_tables(cursor, KPI_FORMULAS, KPI_FAMILIES):
     """Create all necessary tables in the database."""
     try:
         create_main_table(cursor)
-        create_kpi_tables(cursor, KPI_FORMULAS)
+        create_kpi_tables(cursor, KPI_FORMULAS, KPI_FAMILIES)
         logging.info("✅ All tables created successfully.")
     except MySQLdb.Error as e:
         logging.error(f"Error creating tables: {e}")
